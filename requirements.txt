@@ -3,3 +3,4 @@ pymupdf
 faiss-cpu
 sentence-transformers
 google-genai
+python-dotenv
