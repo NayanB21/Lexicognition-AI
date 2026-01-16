@@ -27,11 +27,15 @@ def extract_score(evaluation_text):
 # ----------------------------------
 # Session State Initialization
 # ----------------------------------
+
 if "semantic_chunks" not in st.session_state:
     st.session_state.semantic_chunks = None
 
 if "index" not in st.session_state:
     st.session_state.index = None
+
+if "show_history" not in st.session_state:
+    st.session_state.show_history = False
 
 if "questions" not in st.session_state:
     st.session_state.questions = None
@@ -44,9 +48,14 @@ if "viva_started" not in st.session_state:
 if "history" not in st.session_state:
     st.session_state.history = []
 
+# ----------------------------------
+st.set_page_config(
+    page_title="Lexicognition AI",
+    layout="wide"
+)
 
-st.set_page_config(page_title="Lexicognition AI", layout="centered")
-st.title("🎓 Lexicognition AI – Viva Voce Examiner")
+st.sidebar.title("🎓 Lexicognition AI")
+st.sidebar.markdown("AI-powered Viva Examiner")
 
 
 # ----------------------------------
@@ -106,15 +115,19 @@ if uploaded_file:
             st.session_state.viva_started = True
 
 
-# ----------------------------------
+# ---------------
 # Viva Loop
-# ----------------------------------
+# ---------------
 if st.session_state.viva_started and st.session_state.questions:
+
+    if st.session_state.viva_started:
+        if st.sidebar.button("📜 Toggle History"):
+            st.session_state.show_history = not st.session_state.show_history
 
 # -----------------------------
 # Render Previous Q&A History
 # -----------------------------
-    if st.session_state.history:
+    if st.session_state.show_history and st.session_state.history:
         st.markdown("## 🧾 Viva Progress")
 
         for i, item in enumerate(st.session_state.history):
@@ -140,8 +153,24 @@ if st.session_state.viva_started and st.session_state.questions:
 
     q_idx = st.session_state.current_q_idx
     questions = st.session_state.questions
+    if f"show_answer_{q_idx}" not in st.session_state:
+        st.session_state[f"show_answer_{q_idx}"] = False
+
+    if f"show_eval_{q_idx}" not in st.session_state:
+        st.session_state[f"show_eval_{q_idx}"] = False
+
+    if f"answered_{q_idx}" not in st.session_state:
+        st.session_state[f"answered_{q_idx}"] = False
+
+
 
     if q_idx < len(questions):
+        st.sidebar.progress(
+            q_idx / len(questions)
+        )
+        st.sidebar.markdown(
+            f"**Question:** {q_idx} / {len(questions)}"
+        )
         st.markdown("## 📝 Current Question")
         st.subheader(f"Question {q_idx + 1}")
         st.write(questions[q_idx])
@@ -170,20 +199,72 @@ if st.session_state.viva_started and st.session_state.questions:
                 retrieved
             )
             score = extract_score(evaluation)
+            st.session_state[f"answered_{q_idx}"] = True
+            st.session_state[f"evaluation_{q_idx}"] = evaluation
+            st.session_state[f"score_{q_idx}"] = score
+
             st.session_state.history.append({
                 "question": questions[q_idx],
                 "answer": answer,
                 "evaluation": evaluation,
                 "score": score
             })
-
-            # 🔑 THIS is what moves to next question
-            st.session_state.current_q_idx += 1
             st.rerun()
+
+
+
+        if st.session_state[f"answered_{q_idx}"]:
+        
+            evaluation = st.session_state[f"evaluation_{q_idx}"]
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                if st.button("👁️ Show My Answer", key=f"btn_answer_{q_idx}"):
+                    st.session_state[f"show_answer_{q_idx}"] ^= True
+                    st.session_state[f"show_eval_{q_idx}"] = False
+
+            with col2:
+                if st.button("🧪 Show Evaluation", key=f"btn_eval_{q_idx}"):
+                    st.session_state[f"show_eval_{q_idx}"] ^= True
+                    st.session_state[f"show_answer_{q_idx}"] = False
+
+            col_ans, col_eval = st.columns(2)
+
+            if st.session_state[f"show_answer_{q_idx}"]:
+                with col_ans:
+                    st.markdown("### 🧾 Your Answer")
+                    st.write(answer)
+
+            if st.session_state[f"show_eval_{q_idx}"]:
+                with col_eval:
+                    st.markdown("### 🧪 Evaluation")
+                    st.markdown("---")
+                    formatted = format_evaluation(evaluation)
+                    st.metric("Score", formatted["score"])
+                    st.markdown(f"**Verdict:** {formatted['verdict']}")
+                    st.markdown("**Explanation:**")
+                    st.write(formatted["explanation"])
+
+
+            # moves to next question
+
+            if st.session_state[f"answered_{q_idx}"]:
+                st.markdown("---")
+
+                col_prev, col_next = st.columns([1, 1])
+
+                with col_next:
+                    if st.button("➡️ Next Question", key=f"next_{q_idx}"):
+                        st.session_state[f"show_answer_{q_idx}"] = False
+                        st.session_state[f"show_eval_{q_idx}"] = False
+                        st.session_state.current_q_idx += 1
+                        st.rerun()
 
 
     else:
         # st.success("🎉 Viva Completed (All questions asked)")
         final_score = sum(item["score"] for item in st.session_state.history)
+        st.sidebar.metric("Total Score", final_score)
         st.success(f"🎉 Viva Completed! Final Score: {final_score} / {len(questions)*10}")
 
