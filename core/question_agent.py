@@ -20,6 +20,15 @@ RULES (VERY IMPORTANT):
 - Do NOT provide answers.
 - Number the questions from 1 to {num_questions}.
 
+
+IMPORTANT:
+- Do NOT repeat the exact wording of common questions.
+- Rephrase ideas differently each time.
+- Focus on different aspects such as motivation, assumptions, limitations,
+  experimental design, or implications.
+- Vary sentence structure and angle of questioning.
+
+
 Context from the research paper:
 --------------------
 {context}
